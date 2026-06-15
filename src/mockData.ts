@@ -120,7 +120,11 @@ B.S. in Computer Science (Ongoing, Year 3) - State University`,
         'Core contributor to FastAPI community boilerplate (1200+ stars)',
         'Built open source project FastQuery (300+ stars)',
         'Mentored 10+ peers in python coding'
-      ]
+      ],
+      socialLinks: {
+        github: 'https://github.com/alexcarter-dev',
+        website: 'https://alexcarter.dev'
+      }
     },
     skillEvidence: [
       {
@@ -198,6 +202,12 @@ B.S. in Computer Science (Ongoing, Year 3) - State University`,
       learningVelocity: 95,
       leadershipImpact: 40,
       experienceMatch: 10
+    },
+    deepReviewSignals: {
+      githubChecked: false,
+      linkedinChecked: false,
+      portfolioChecked: false,
+      websiteChecked: false
     }
   },
   {
@@ -290,7 +300,10 @@ React, TypeScript, JavaScript, HTML, CSS, Tailwind CSS, Zustand, Redux, React Qu
       achievements: [
         'Boosted test coverage at InnovateTech from 40% to 75%',
         'Successfully migrated state logic to Zustand, speeding up rendering times'
-      ]
+      ],
+      socialLinks: {
+        github: 'https://github.com/sarahlin-dev'
+      }
     },
     skillEvidence: [
       {
@@ -367,6 +380,12 @@ React, TypeScript, JavaScript, HTML, CSS, Tailwind CSS, Zustand, Redux, React Qu
       learningVelocity: 75,
       leadershipImpact: 50,
       experienceMatch: 80
+    },
+    deepReviewSignals: {
+      githubChecked: false,
+      linkedinChecked: false,
+      portfolioChecked: false,
+      websiteChecked: false
     }
   },
   {
@@ -457,7 +476,10 @@ TECHNICAL SKILLS
       achievements: [
         'Migrated monolith to microservices, boosting speed by 300% for 15M active users',
         'Directly mentored and led a team of 8 backend developers'
-      ]
+      ],
+      socialLinks: {
+        linkedin: 'https://linkedin.com/in/david-miller-arch'
+      }
     },
     skillEvidence: [
       {
@@ -533,6 +555,12 @@ TECHNICAL SKILLS
       learningVelocity: 70,
       leadershipImpact: 96,
       experienceMatch: 95
+    },
+    deepReviewSignals: {
+      githubChecked: false,
+      linkedinChecked: false,
+      portfolioChecked: false,
+      websiteChecked: false
     }
   }
 ];
@@ -586,7 +614,18 @@ export const calculateFinalScore = (
     totalWeight += stageWeights.leadershipImpact;
   }
 
-  const finalScoreVal = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
+  const baseScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
+  
+  // Deep Review Bonus Score
+  let bonus = 0;
+  if (template.deepReviewSignals) {
+    if (template.deepReviewSignals.githubChecked) bonus += 3;
+    if (template.deepReviewSignals.linkedinChecked) bonus += 2;
+    if (template.deepReviewSignals.portfolioChecked) bonus += 3;
+    if (template.deepReviewSignals.websiteChecked) bonus += 2;
+  }
+
+  const finalScoreVal = Math.min(baseScore + bonus, 100);
 
   // Re-generate strengths/weaknesses and recommendation based on score
   let recommendation: 'Strong Fit' | 'Moderate Fit' | 'No Fit' = 'Moderate Fit';
@@ -605,8 +644,8 @@ export const calculateFinalScore = (
 
   // Generate breakdown object
   const breakdown = {
-    skillEvidence: template.skillEvidence.reduce((sum, s) => sum + s.score, 0) / template.skillEvidence.length,
-    projectRelevance: template.projectRelevance.reduce((sum, p) => sum + p.matchScore, 0) / template.projectRelevance.length,
+    skillEvidence: template.skillEvidence.length > 0 ? template.skillEvidence.reduce((sum, s) => sum + s.score, 0) / template.skillEvidence.length : 0,
+    projectRelevance: template.projectRelevance.length > 0 ? template.projectRelevance.reduce((sum, p) => sum + p.matchScore, 0) / template.projectRelevance.length : 0,
     knowledgeDepth: template.scores.knowledgeDepth,
     learningVelocity: template.scores.learningVelocity,
     experienceMatch: template.scores.experienceMatch,
@@ -622,8 +661,13 @@ export const calculateFinalScore = (
     leadershipImpact: stageWeights.leadershipImpact || 0
   };
 
+  // Potential Score measures future success potential.
+  // Components: Project Complexity (projectRelevance), Learning Velocity, Knowledge Depth
+  const potentialScoreVal = Math.round((breakdown.projectRelevance + breakdown.learningVelocity + breakdown.knowledgeDepth) / 3);
+
   return {
     finalScore: finalScoreVal,
+    potentialScore: potentialScoreVal,
     recommendation,
     reasoning,
     breakdown,

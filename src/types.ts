@@ -43,6 +43,13 @@ export interface EducationDetail {
   year: string;
 }
 
+export interface SocialLinks {
+  github?: string;
+  linkedin?: string;
+  portfolio?: string;
+  website?: string;
+}
+
 export interface CandidateProfile {
   name: string;
   skills: string[];
@@ -51,6 +58,7 @@ export interface CandidateProfile {
   education: EducationDetail[];
   certifications: string[];
   achievements: string[];
+  socialLinks?: SocialLinks;
 }
 
 export interface SkillEvidenceMetrics {
@@ -80,6 +88,7 @@ export interface FinalExplainabilityReport {
   candidateName: string;
   careerStage: CareerStage;
   finalScore: number;
+  potentialScore?: number;
   breakdown: {
     projectRelevance: number;
     skillEvidence: number;
@@ -119,4 +128,36 @@ export interface MockTemplate {
     leadershipImpact: number;
     experienceMatch: number;
   };
+  deepReviewSignals?: {
+    githubChecked: boolean;
+    linkedinChecked: boolean;
+    portfolioChecked: boolean;
+    websiteChecked: boolean;
+  };
+  socialAuditResult?: SocialAuditResponse;
+}
+
+export interface GithubRepoInfo {
+  name: string;
+  description?: string;
+  primary_language?: string;
+  stars: number;
+  url: string;
+}
+
+export interface LLMSocialAnalysis {
+  code_complexity_score: number;
+  portfolio_quality_score: number;
+  strengths: string[];
+  weaknesses: string[];
+}
+
+export interface SocialAuditResponse {
+  github_verified: boolean;
+  portfolio_verified: boolean;
+  detected_languages: string[];
+  repositories: GithubRepoInfo[];
+  llm_analysis: LLMSocialAnalysis;
+  discrepancies: string[];
+  justification: string;
 }

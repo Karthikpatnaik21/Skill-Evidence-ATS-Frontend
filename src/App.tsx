@@ -95,6 +95,78 @@ function App() {
     reasoning: reportInfo.reasoning,
   };
 
+  const handleToggleDeepReview = (candidateId: string, signalKey: 'githubChecked' | 'linkedinChecked' | 'portfolioChecked' | 'websiteChecked') => {
+    setTemplates((prev) =>
+      prev.map((t) =>
+        t.id === candidateId
+          ? {
+              ...t,
+              deepReviewSignals: t.deepReviewSignals
+                ? {
+                    ...t.deepReviewSignals,
+                    [signalKey]: !t.deepReviewSignals[signalKey],
+                  }
+                : {
+                    githubChecked: false,
+                    linkedinChecked: false,
+                    portfolioChecked: false,
+                    websiteChecked: false,
+                    [signalKey]: true,
+                  },
+            }
+          : t
+      )
+    );
+  };
+
+  const handleSaveSocialAudit = (candidateId: string, auditResult: any, autoVerify: boolean = false) => {
+    setTemplates((prev) =>
+      prev.map((t) => {
+        if (t.id === candidateId) {
+          const currentSignals = t.deepReviewSignals || {
+            githubChecked: false,
+            linkedinChecked: false,
+            portfolioChecked: false,
+            websiteChecked: false,
+          };
+          const updatedSignals = autoVerify
+            ? {
+                githubChecked: auditResult.github_verified || currentSignals.githubChecked,
+                linkedinChecked: currentSignals.linkedinChecked || (t.resumeParsed.socialLinks?.linkedin ? true : false),
+                portfolioChecked: auditResult.portfolio_verified || currentSignals.portfolioChecked,
+                websiteChecked: currentSignals.websiteChecked || (t.resumeParsed.socialLinks?.website ? true : false),
+              }
+            : currentSignals;
+
+          return {
+            ...t,
+            socialAuditResult: auditResult,
+            deepReviewSignals: updatedSignals,
+          };
+        }
+        return t;
+      })
+    );
+  };
+
+  const handleDeleteCandidate = (candidateId: string) => {
+    setTemplates((prev) => prev.filter((t) => t.id !== candidateId));
+    const remaining = templates.filter((t) => t.id !== candidateId);
+    if (activeTemplateId === candidateId && remaining.length > 0) {
+      setActiveTemplateId(remaining[0].id);
+    }
+  };
+
+  const handleAddCandidate = (newCandidate: MockTemplate) => {
+    setTemplates((prev) => {
+      if (prev.some((t) => t.id === newCandidate.id)) {
+        return prev.map((t) => t.id === newCandidate.id ? newCandidate : t);
+      }
+      return [...prev, newCandidate];
+    });
+    setActiveTemplateId(newCandidate.id);
+  };
+
   const handleUpdateJD = (jdText: string, parsedJD: JobDescriptionProfile) => {
     setTemplates((prev) =>
       prev.map((t) =>
@@ -173,7 +245,14 @@ function App() {
         {activeTab === 'dashboard' && (
           <Dashboard 
             templates={templates} 
-            onSelectCandidate={handleSelectCandidateFromDashboard} 
+            onSelectCandidate={handleSelectCandidateFromDashboard}
+            onToggleDeepReview={handleToggleDeepReview}
+            onDeleteCandidate={handleDeleteCandidate}
+            onAddCandidate={handleAddCandidate}
+            activeTemplate={activeTemplate}
+            isBackendActive={isBackendActive}
+            weights={weights}
+            onSaveSocialAudit={handleSaveSocialAudit}
           />
         )}
         
@@ -197,6 +276,8 @@ function App() {
             isBackendActive={isBackendActive}
             weights={weights}
             onSaveBackendReport={(report) => setBackendReports(prev => ({ ...prev, [activeTemplateId]: report }))}
+            onToggleDeepReview={handleToggleDeepReview}
+            onSaveSocialAudit={handleSaveSocialAudit}
           />
         )}
         

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { MockTemplate, SkillEvidenceMetrics, ProjectRelevanceDetail, CareerStageDetection, FinalExplainabilityReport } from '../types';
-import { Loader2, Play, Cpu, BookOpen, Award, TrendingUp, ChevronRight } from 'lucide-react';
+import { Loader2, Play, Cpu, BookOpen, Award, TrendingUp, ChevronRight, Briefcase, Globe, Terminal, Link } from 'lucide-react';
+import { SocialAuditModal } from './SocialAuditModal';
 
 interface ResumeParserProps {
   activeTemplate: MockTemplate;
@@ -17,11 +18,123 @@ interface ResumeParserProps {
   isBackendActive?: boolean;
   weights?: any;
   onSaveBackendReport?: (report: any) => void;
+  onToggleDeepReview?: (candidateId: string, signalKey: 'githubChecked' | 'linkedinChecked' | 'portfolioChecked' | 'websiteChecked') => void;
+  onSaveSocialAudit: (candidateId: string, auditResult: any, autoVerify: boolean) => void;
 }
 
 const parseResumeClientSide = (text: string) => {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   
+  // 1.5 Extract Social Links from raw text via regex heuristics
+  const socialLinks: any = {};
+  const linesForLinks = text.split('\n');
+  
+  for (let line of linesForLinks) {
+    line = line.trim();
+    if (!line) continue;
+    
+    // 1. LinkedIn
+    if (/linkedin\.com\/in\//i.test(line)) {
+      const match = line.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([a-zA-Z0-9_\-%]+)/i);
+      if (match) {
+        socialLinks.linkedin = `https://www.linkedin.com/in/${match[1]}`;
+      }
+    } else if (/linkedin/i.test(line) && !socialLinks.linkedin) {
+      const labelMatch = line.match(/linkedin\s*:\s*(.+)/i);
+      if (labelMatch) {
+        const val = labelMatch[1].trim().replace(/[|,\s]+$/, '');
+        if (val) {
+          if (val.includes('linkedin.com/in/')) {
+            const m = val.match(/(?:linkedin\.com\/in\/)?([a-zA-Z0-9_\-%]+)/i);
+            if (m) {
+              socialLinks.linkedin = `https://www.linkedin.com/in/${m[1]}`;
+            }
+          } else if (!val.includes('/') && /^[a-zA-Z0-9_-]+$/.test(val)) {
+            socialLinks.linkedin = `https://www.linkedin.com/in/${val}`;
+          }
+        }
+      }
+    }
+    
+    // 2. GitHub & github.io
+    if (/github\.com\//i.test(line)) {
+      const match = line.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([a-zA-Z0-9_-]+)/i);
+      if (match) {
+        const username = match[1];
+        if (!['features', 'pulls', 'pricing', 'explore', 'market', 'trending'].includes(username.toLowerCase())) {
+          socialLinks.github = `https://github.com/${username}`;
+        }
+      }
+    } else if (/github/i.test(line) && !socialLinks.github && !/github\.io/i.test(line)) {
+      const labelMatch = line.match(/github\s*:\s*(.+)/i);
+      if (labelMatch) {
+        const val = labelMatch[1].trim().replace(/[|,\s]+$/, '');
+        if (val) {
+          if (val.includes('github.com')) {
+            const m = val.match(/(?:github\.com\/)?([a-zA-Z0-9_-]+)/i);
+            if (m) {
+              socialLinks.github = `https://github.com/${m[1]}`;
+            }
+          } else if (!val.includes('/') && /^[a-zA-Z0-9_-]+$/.test(val)) {
+            socialLinks.github = `https://github.com/${val}`;
+          }
+        }
+      }
+    }
+    
+    if (/github\.io/i.test(line)) {
+      const match = line.match(/(?:https?:\/\/)?([a-zA-Z0-9_-]+)\.github\.io/i);
+      if (match) {
+        const username = match[1];
+        socialLinks.github = `https://github.com/${username}`;
+        
+        const portfolioLabelMatch = line.match(/(?:portfolio|website|site|url|link)\s*:\s*(.+)/i);
+        if (portfolioLabelMatch) {
+          const rawUrl = portfolioLabelMatch[1].trim().replace(/[|,\s]+$/, '');
+          if (rawUrl) {
+            socialLinks.portfolio = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+          }
+        } else {
+          const httpIdx = line.toLowerCase().indexOf('http');
+          if (httpIdx !== -1) {
+            socialLinks.portfolio = line.substring(httpIdx).trim().replace(/[|,\s]+$/, '');
+          } else {
+            socialLinks.portfolio = `https://${username}.github.io`;
+          }
+        }
+      }
+    }
+    
+    // 3. General Portfolio (if not set by github.io yet)
+    if (/portfolio/i.test(line) && !socialLinks.portfolio) {
+      const match = line.match(/portfolio\s*:\s*(.+)/i);
+      if (match) {
+        const rawUrl = match[1].trim().replace(/[|,\s]+$/, '');
+        if (rawUrl) {
+          socialLinks.portfolio = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+        }
+      }
+    }
+    
+    // 4. Website (general URL on a line with website/url/site label)
+    if (/(?:website|site|personal page)\s*:\s*(.+)/i.test(line) && !socialLinks.website) {
+      const match = line.match(/(?:website|site|personal page)\s*:\s*(.+)/i);
+      if (match) {
+        const rawUrl = match[1].trim().replace(/[|,\s]+$/, '');
+        if (rawUrl && !rawUrl.includes('github.com') && !rawUrl.includes('linkedin.com')) {
+          socialLinks.website = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+        }
+      }
+    }
+  }
+
+  // Remove any spaces in the extracted URLs
+  for (const key in socialLinks) {
+    if (socialLinks[key]) {
+      socialLinks[key] = socialLinks[key].replace(/\s+/g, '');
+    }
+  }
+
   // 1. Extract Name
   let name = '';
   
@@ -248,7 +361,8 @@ const parseResumeClientSide = (text: string) => {
       experience: experiences,
       education: [{ degree: 'B.S. in Computer Science', school: 'University', year: '2024' }],
       certifications: [],
-      achievements: []
+      achievements: [],
+      socialLinks: socialLinks
     },
     skillEvidence,
     projectRelevance: [
@@ -282,6 +396,8 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
   isBackendActive,
   weights,
   onSaveBackendReport,
+  onToggleDeepReview,
+  onSaveSocialAudit,
 }) => {
   const [resumeText, setResumeText] = useState(activeTemplate.resumeText);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -289,6 +405,14 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
   const [showResult, setShowResult] = useState(true);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isAuditOpen, setIsAuditOpen] = useState(false);
+
+  const handleOpenLink = (e: React.MouseEvent, url?: string) => {
+    e.stopPropagation();
+    if (url) {
+      window.open(url.startsWith('http') ? url : `https://${url}`, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   // Helper to load PDF.js from CDN
   const loadPdfJs = (): Promise<any> => {
@@ -789,16 +913,141 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
                 
                 <div>
                   <h3 className="text-lg font-bold text-white">{calculatedReport.candidateName}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-mono font-bold bg-slate-900 text-slate-300 border border-slate-800 px-2 py-0.5 rounded uppercase">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className={`text-[10px] font-mono font-bold bg-slate-900 border px-2 py-0.5 rounded uppercase ${
+                      calculatedReport.careerStage === 'fresher' ? 'text-emerald-400 border-emerald-500/20' : 
+                      calculatedReport.careerStage === 'mid' ? 'text-indigo-400 border-indigo-500/20' : 
+                      'text-amber-400 border-amber-500/20'
+                    }`}>
                       {calculatedReport.careerStage} Stage
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
                       {activeTemplate.stageDetection.detectedYearsOfExperience} Years Experience
                     </span>
+                    <span className="text-[10px] font-mono font-bold bg-slate-900 text-indigo-300 border border-slate-800 px-2 py-0.5 rounded uppercase">
+                      Potential Score: {calculatedReport.potentialScore ?? 75}/100
+                    </span>
                   </div>
                 </div>
               </div>
+
+              {onToggleDeepReview && (
+                <div className="flex items-center gap-1.5 bg-slate-950/60 p-2 rounded-xl border border-slate-900 shrink-0">
+                  <button
+                    onClick={() => setIsAuditOpen(true)}
+                    className="flex items-center gap-1 bg-cyan-600/10 hover:bg-cyan-600/20 border border-cyan-500/20 hover:border-cyan-500/40 text-cyan-400 text-[10.5px] font-mono font-semibold px-2 py-1.5 rounded-lg cursor-pointer transition-all mr-1.5 shadow-sm shadow-cyan-500/5 animate-pulse"
+                    title="Start Scraper & Run Social Profiles Audit"
+                  >
+                    <Cpu className="h-3 w-3" />
+                    <span>Run Audit</span>
+                  </button>
+                  <span className="text-[9px] text-slate-500 font-mono uppercase mr-1.5 hidden sm:inline">Deep Review:</span>
+                  
+                  {/* GitHub Toggle */}
+                  <div className="relative group/btn">
+                    <button
+                      onClick={() => onToggleDeepReview(activeTemplate.id, 'githubChecked')}
+                      className={`p-1.5 rounded-lg border text-xs transition-all relative group cursor-pointer ${
+                        activeTemplate.deepReviewSignals?.githubChecked 
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+                          : 'bg-slate-900/40 border-slate-850 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      <Terminal className="h-3.5 w-3.5" />
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
+                        GitHub: {activeTemplate.resumeParsed.socialLinks?.github || 'Not found'} (+3)
+                      </span>
+                    </button>
+                    {activeTemplate.resumeParsed.socialLinks?.github && (
+                      <button
+                        onClick={(e) => handleOpenLink(e, activeTemplate.resumeParsed.socialLinks?.github)}
+                        className="absolute -top-1 -right-1 h-3 w-3 bg-slate-950 hover:bg-indigo-650 border border-slate-850 hover:border-indigo-400 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-all text-[7px] cursor-pointer font-bold font-mono"
+                        title="Open GitHub"
+                      >
+                        ↗
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* LinkedIn Toggle */}
+                  <div className="relative group/btn">
+                    <button
+                      onClick={() => onToggleDeepReview(activeTemplate.id, 'linkedinChecked')}
+                      className={`p-1.5 rounded-lg border text-xs transition-all relative group cursor-pointer ${
+                        activeTemplate.deepReviewSignals?.linkedinChecked 
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+                          : 'bg-slate-900/40 border-slate-850 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      <Link className="h-3.5 w-3.5" />
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
+                        LinkedIn: {activeTemplate.resumeParsed.socialLinks?.linkedin || 'Not found'} (+2)
+                      </span>
+                    </button>
+                    {activeTemplate.resumeParsed.socialLinks?.linkedin && (
+                      <button
+                        onClick={(e) => handleOpenLink(e, activeTemplate.resumeParsed.socialLinks?.linkedin)}
+                        className="absolute -top-1 -right-1 h-3 w-3 bg-slate-950 hover:bg-indigo-650 border border-slate-850 hover:border-indigo-400 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-all text-[7px] cursor-pointer font-bold font-mono"
+                        title="Open LinkedIn"
+                      >
+                        ↗
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Portfolio Toggle */}
+                  <div className="relative group/btn">
+                    <button
+                      onClick={() => onToggleDeepReview(activeTemplate.id, 'portfolioChecked')}
+                      className={`p-1.5 rounded-lg border text-xs transition-all relative group cursor-pointer ${
+                        activeTemplate.deepReviewSignals?.portfolioChecked 
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+                          : 'bg-slate-900/40 border-slate-850 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      <Briefcase className="h-3.5 w-3.5" />
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
+                        Portfolio: {activeTemplate.resumeParsed.socialLinks?.portfolio || 'Not found'} (+3)
+                      </span>
+                    </button>
+                    {activeTemplate.resumeParsed.socialLinks?.portfolio && (
+                      <button
+                        onClick={(e) => handleOpenLink(e, activeTemplate.resumeParsed.socialLinks?.portfolio)}
+                        className="absolute -top-1 -right-1 h-3 w-3 bg-slate-950 hover:bg-indigo-650 border border-slate-850 hover:border-indigo-400 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-all text-[7px] cursor-pointer font-bold font-mono"
+                        title="Open Portfolio"
+                      >
+                        ↗
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Website Toggle */}
+                  <div className="relative group/btn">
+                    <button
+                      onClick={() => onToggleDeepReview(activeTemplate.id, 'websiteChecked')}
+                      className={`p-1.5 rounded-lg border text-xs transition-all relative group cursor-pointer ${
+                        activeTemplate.deepReviewSignals?.websiteChecked 
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+                          : 'bg-slate-900/40 border-slate-850 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
+                        Website: {activeTemplate.resumeParsed.socialLinks?.website || 'Not found'} (+2)
+                      </span>
+                    </button>
+                    {activeTemplate.resumeParsed.socialLinks?.website && (
+                      <button
+                        onClick={(e) => handleOpenLink(e, activeTemplate.resumeParsed.socialLinks?.website)}
+                        className="absolute -top-1 -right-1 h-3 w-3 bg-slate-950 hover:bg-indigo-650 border border-slate-850 hover:border-indigo-400 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-all text-[7px] cursor-pointer font-bold font-mono"
+                        title="Open Website"
+                      >
+                        ↗
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="text-right">
                 <p className="text-[10px] font-mono uppercase text-slate-500 tracking-wider">Recommendation Decision</p>
@@ -954,6 +1203,18 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
           </div>
         )}
       </div>
+
+      {isAuditOpen && (
+        <SocialAuditModal
+          isOpen={isAuditOpen}
+          onClose={() => setIsAuditOpen(false)}
+          candidateName={activeTemplate.resumeParsed.name}
+          candidateId={activeTemplate.id}
+          socialLinks={activeTemplate.resumeParsed.socialLinks}
+          onSaveAudit={onSaveSocialAudit}
+          initialAuditResult={activeTemplate.socialAuditResult}
+        />
+      )}
     </div>
   );
 };
