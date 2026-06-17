@@ -5,6 +5,7 @@ import { JobAnalyzer } from './components/JobAnalyzer';
 import { ResumeParser } from './components/ResumeParser';
 import { WeightSandbox } from './components/WeightSandbox';
 import { JsonPreview } from './components/JsonPreview';
+import { BatchSandbox } from './components/BatchSandbox';
 
 import { mockTemplates, defaultWeights, calculateFinalScore } from './mockData';
 import type { WeightsConfig, MockTemplate, JobDescriptionProfile } from './types';
@@ -279,6 +280,10 @@ function App() {
             onToggleDeepReview={handleToggleDeepReview}
             onSaveSocialAudit={handleSaveSocialAudit}
           />
+        )}
+        
+        {activeTab === 'batch_sandbox' && (
+          <BatchSandbox />
         )}
         
         {activeTab === 'sandbox' && (

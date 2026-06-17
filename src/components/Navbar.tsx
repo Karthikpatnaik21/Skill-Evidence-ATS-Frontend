@@ -11,6 +11,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'analyzer', label: 'Job JD Analyzer', icon: FileText },
     { id: 'parser', label: 'Candidate Parser', icon: Cpu },
+    { id: 'batch_sandbox', label: 'Batch Sandbox', icon: Layers },
     { id: 'sandbox', label: 'Weight Sandbox', icon: Settings },
     { id: 'preview', label: 'JSON Schema API', icon: CodeXml },
   ];

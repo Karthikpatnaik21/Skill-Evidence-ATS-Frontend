@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Skill Evidence ATS — Frontend Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the React + TypeScript frontend web application for the **Skill Evidence ATS** system, powered by Vite.
 
-Currently, two official plugins are available:
+## Features
+- **Recruiter Dashboard**: Interactive view of candidate metrics, capabilities, and social signal audits.
+- **Job Analyzer**: Workspace for pasting and parsing job description texts.
+- **Resume Parser & Auditor**: Detailed extraction tool showing evidence verification for candidates' claimed skills.
+- **Weight Sandbox**: Recruiter configuration module allowing instant, weight-adjusted score calculations.
+- **Batch Sandbox & Evaluator**: Bulk uploads and server-side processing for candidate pools up to 100K profiles. Features include:
+  - Dual modes: Direct Browser Upload (safety capped at 10MB) vs. Server-side Streaming.
+  - Interactive custom Job Description pasting & automatic requirement weights extraction.
+  - Complete pagination, skeleton loaders, and results summary statistics.
+  - Clean CSV exporter fully compliant with the challenge rules.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Getting Started
 
-## React Compiler
+### Prerequisites
+- Node.js (v18+)
+- npm
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Setup & Run
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Access the web app at `http://localhost:5173`.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 💡 AI Transparency Note
+In the interest of professional integrity and engineering transparency, I want to state clearly that **Google Antigravity** (Google DeepMind's advanced agentic coding assistant) was utilized during the design, implementation, and optimization of this project.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+This choice was not due to a lack of technical knowledge or programming capability, but rather to maximize efficiency. Translating complex conceptual ideas into a production-ready system within a compressed hackathon timeline is a major constraint. Using AI allowed me to quickly prototype, test, and iterate on my ideas in real-time. System design is fundamentally a process of trial and error, and using Google Antigravity helped streamline this cycle, reduce formatting/boilerplate errors, and deliver a robust solution in the limited time available. I believe in utilizing modern tools to build better software, and I am proud of the hybrid human-AI engineering process used to bring this system to life.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
