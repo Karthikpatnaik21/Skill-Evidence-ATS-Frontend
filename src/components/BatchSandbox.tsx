@@ -40,12 +40,14 @@ export const BatchSandbox: React.FC = () => {
   const [deepSearch, setDeepSearch] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
-  const [results, setResults] = useState<BatchRankResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'ranked' | 'disqualified'>('ranked');
+  const [activeSubTab, setActiveSubTab] = useState<'ranked' | 'disqualified' | 'market'>('ranked');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [marketData, setMarketData] = useState<any | null>(null);
+  const [marketLoading, setMarketLoading] = useState<boolean>(false);
   const [selectedCandidate, setSelectedCandidate] = useState<RankedCandidate | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [results, setResults] = useState<BatchRankResponse | null>(null);
   const PAGE_SIZE = 50;
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -62,7 +64,7 @@ export const BatchSandbox: React.FC = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [loading]);
 
-  // Fetch challenge job description on mount
+  // Fetch challenge job description and market trends on mount
   useEffect(() => {
     fetch('/api/v1/sandbox/job-description')
       .then(res => {
@@ -71,6 +73,16 @@ export const BatchSandbox: React.FC = () => {
       })
       .then(data => setChallengeJD(data))
       .catch(err => console.error(err));
+
+    setMarketLoading(true);
+    fetch('/api/v1/sandbox/market-analysis')
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Failed to load market analysis.');
+      })
+      .then(data => setMarketData(data))
+      .catch(err => console.error(err))
+      .finally(() => setMarketLoading(false));
   }, []);
   const [jdMode, setJdMode] = useState<'challenge' | 'custom'>('challenge');
   const [customJdText, setCustomJdText] = useState<string>('');
@@ -265,7 +277,7 @@ export const BatchSandbox: React.FC = () => {
 
     // Build CSV Content
     const headers = ['candidate_id', 'rank', 'score', 'reasoning'];
-    const rows = results.ranked_candidates.map(c => [
+    const rows = results.ranked_candidates.map((c: RankedCandidate) => [
       c.candidate_id,
       c.rank,
       c.score,
@@ -274,7 +286,7 @@ export const BatchSandbox: React.FC = () => {
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(r => r.join(','))
+      ...rows.map((r: any[]) => r.join(','))
     ].join('\n');
 
     // Create download link
@@ -288,24 +300,24 @@ export const BatchSandbox: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const filteredRanked = results?.ranked_candidates.filter(c => 
+  const filteredRanked = results?.ranked_candidates.filter((c: RankedCandidate) => 
     c.candidate_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.stage.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.reasoning.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  const filteredDisqualified = results?.disqualified_candidates.filter(c => 
+  const filteredDisqualified = results?.disqualified_candidates.filter((c: DisqualifiedLog) => 
     c.candidate_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.reason.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
-  const honeypotsCount = results?.disqualified_candidates.filter(c => 
+  const honeypotsCount = results?.disqualified_candidates.filter((c: DisqualifiedLog) => 
     c.reason.toLowerCase().includes('honeypot')
   ).length || 0;
 
-  const servicesExclusionsCount = results?.disqualified_candidates.filter(c => 
+  const servicesExclusionsCount = results?.disqualified_candidates.filter((c: DisqualifiedLog) => 
     c.reason.toLowerCase().includes('consulting') || c.reason.toLowerCase().includes('service')
   ).length || 0;
 
@@ -316,7 +328,7 @@ export const BatchSandbox: React.FC = () => {
   const pagedDisqualified = filteredDisqualified.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleSearch = (q: string) => { setSearchQuery(q); setCurrentPage(1); };
-  const handleTabChange = (tab: 'ranked' | 'disqualified') => { setActiveSubTab(tab); setCurrentPage(1); };
+  const handleTabChange = (tab: 'ranked' | 'disqualified' | 'market') => { setActiveSubTab(tab); setCurrentPage(1); };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -477,6 +489,24 @@ export const BatchSandbox: React.FC = () => {
             {customJD && (
               <div className="border-t border-slate-800/60 pt-4 space-y-3 animate-fadeIn">
                 <h3 className="text-sm font-bold text-white">{customJD.title || 'Extracted Profile'}</h3>
+                
+                {/* Validation Warnings */}
+                {customJD.validationWarnings && customJD.validationWarnings.length > 0 && (
+                  <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl space-y-2 mb-3">
+                    <div className="flex items-center gap-2 text-rose-400 font-bold text-xs font-mono uppercase tracking-wider">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      <span>Impossible / Contradictory Requirements Detected</span>
+                    </div>
+                    <ul className="space-y-1.5 list-disc pl-4">
+                      {customJD.validationWarnings.map((warning: string, index: number) => (
+                        <li key={index} className="text-xs text-rose-300 leading-relaxed font-mono">
+                          {warning}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-slate-900/30 border border-slate-800/40 p-4 rounded-xl space-y-2">
                     <span className="text-[10px] font-mono uppercase text-emerald-400 tracking-wider block font-bold">Required Skills</span>
@@ -694,39 +724,53 @@ export const BatchSandbox: React.FC = () => {
                 />
               </div>
 
-              {results && (
-                <div className="flex items-center gap-3">
-                  <div className="flex rounded-lg border border-slate-800/80 p-0.5 bg-slate-950">
-                    <button
-                      onClick={() => handleTabChange('ranked')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                        activeSubTab === 'ranked' 
-                          ? 'bg-slate-800 text-white' 
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      Ranked List ({filteredRanked.length})
-                    </button>
-                    <button
-                      onClick={() => handleTabChange('disqualified')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                        activeSubTab === 'disqualified' 
-                          ? 'bg-slate-800 text-white' 
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      Disqualified ({filteredDisqualified.length})
-                    </button>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="flex rounded-lg border border-slate-800/80 p-0.5 bg-slate-950">
+                  {results && (
+                    <>
+                      <button
+                        onClick={() => handleTabChange('ranked')}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                          activeSubTab === 'ranked' 
+                            ? 'bg-slate-800 text-white' 
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Ranked List ({filteredRanked.length})
+                      </button>
+                      <button
+                        onClick={() => handleTabChange('disqualified')}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                          activeSubTab === 'disqualified' 
+                            ? 'bg-slate-800 text-white' 
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Disqualified ({filteredDisqualified.length})
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => handleTabChange('market')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                      activeSubTab === 'market' 
+                        ? 'bg-slate-800 text-white' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Market Analytics
+                  </button>
+                </div>
 
+                {results && (
                   <button
                     onClick={downloadCSV}
                     className="bg-indigo-600/10 border border-indigo-500/30 hover:bg-indigo-600/20 text-indigo-300 font-semibold text-xs py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <ArrowDownToLine className="h-3.5 w-3.5" /> Export Top 100 CSV
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Results views */}
@@ -795,7 +839,7 @@ export const BatchSandbox: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-900 text-xs">
-                       {pagedRanked.map((c) => (
+                       {pagedRanked.map((c: RankedCandidate) => (
                         <tr key={c.candidate_id} className="hover:bg-slate-900/30 text-slate-300">
                           <td className="px-6 py-3.5 font-bold text-indigo-400 font-mono">#{c.rank}</td>
                           <td className="px-6 py-3.5 font-mono text-[11px] text-slate-400">{c.candidate_id}</td>
@@ -855,7 +899,7 @@ export const BatchSandbox: React.FC = () => {
                       )}
                     </tbody>
                   </table>
-                ) : (
+                ) : activeSubTab === 'disqualified' ? (
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-850 bg-slate-900/20 text-[10px] font-mono text-slate-500 uppercase tracking-wider">
@@ -866,7 +910,7 @@ export const BatchSandbox: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-900 text-xs">
-                      {pagedDisqualified.map((c) => {
+                      {pagedDisqualified.map((c: DisqualifiedLog) => {
                         const isHoneypot = c.reason.toLowerCase().includes('honeypot');
                         return (
                           <tr key={c.candidate_id} className="hover:bg-slate-900/30 text-slate-300">
@@ -907,12 +951,90 @@ export const BatchSandbox: React.FC = () => {
                       )}
                     </tbody>
                   </table>
+                ) : (
+                  /* ── Market Analytics view ── */
+                  <div className="p-6 space-y-8 text-slate-300 animate-fadeIn">
+                    {marketLoading ? (
+                      <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                        <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+                        <span className="text-xs text-slate-400 font-mono">Compiling market trends...</span>
+                      </div>
+                    ) : !marketData ? (
+                      <div className="text-center py-12 text-slate-500 font-mono">
+                        Market metrics could not be loaded.
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Stats widgets */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-slate-900/40 border border-slate-800/60 p-4 rounded-xl">
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">Profiles Scanned</span>
+                            <span className="text-2xl font-bold text-white font-mono">{marketData.total_scanned.toLocaleString()}</span>
+                          </div>
+                          <div className="bg-slate-900/40 border border-slate-800/60 p-4 rounded-xl">
+                            <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider block">Average Experience</span>
+                            <span className="text-2xl font-bold text-white font-mono">{marketData.avg_yoe} years</span>
+                          </div>
+                        </div>
+
+                        {/* Stage Distribution chart */}
+                        <div className="bg-slate-900/20 border border-slate-800/60 p-5 rounded-xl space-y-4">
+                          <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider font-mono">Talent Stage Distribution</h4>
+                          <div className="space-y-3 text-xs font-mono">
+                            {Object.entries(marketData.stages).map(([stage, count]: any) => {
+                              const pct = marketData.total_scanned > 0 ? ((count / marketData.total_scanned) * 100).toFixed(1) : "0";
+                              const color = stage === 'fresher' ? 'bg-cyan-500' : stage === 'junior' ? 'bg-teal-500' : stage === 'senior' ? 'bg-indigo-500' : 'bg-fuchsia-500';
+                              return (
+                                <div key={stage} className="space-y-1">
+                                  <div className="flex justify-between items-center text-[11px]">
+                                    <span className="capitalize">{stage.replace('_', ' ')}</span>
+                                    <span className="text-slate-400">{count.toLocaleString()} ({pct}%)</span>
+                                  </div>
+                                  <div className="h-2 bg-slate-950 rounded-full overflow-hidden">
+                                    <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Top Hubs */}
+                          <div className="bg-slate-900/20 border border-slate-800/60 p-5 rounded-xl space-y-3">
+                            <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider font-mono">Geographical Hubs</h4>
+                            <div className="space-y-2 text-xs font-mono">
+                              {marketData.top_locations.map((loc: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center py-1 border-b border-slate-900 last:border-0">
+                                  <span className="text-slate-300">{loc.name}</span>
+                                  <span className="text-indigo-400 font-bold">{loc.count.toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Top Skills */}
+                          <div className="bg-slate-900/20 border border-slate-800/60 p-5 rounded-xl space-y-3">
+                            <h4 className="font-bold text-slate-200 text-xs uppercase tracking-wider font-mono">Skill Market Density</h4>
+                            <div className="space-y-2 text-xs font-mono">
+                              {marketData.top_skills.slice(0, 10).map((sk: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center py-1 border-b border-slate-900 last:border-0">
+                                  <span className="text-slate-300">{sk.name}</span>
+                                  <span className="text-emerald-400 font-bold">{sk.count.toLocaleString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
 
             {/* Pagination bar */}
-            {results && totalPages > 1 && (
+            {results && activeSubTab !== 'market' && totalPages > 1 && (
               <div className="border-t border-slate-800/80 bg-slate-900/30 px-6 py-3 flex items-center justify-between gap-4">
                 <span className="text-[11px] font-mono text-slate-500">
                   Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, activeList.length)} of {activeList.length.toLocaleString()}

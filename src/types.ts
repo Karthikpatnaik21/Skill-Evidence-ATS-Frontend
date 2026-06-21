@@ -22,6 +22,7 @@ export interface JobDescriptionProfile {
   responsibilities: string[];
   seniority: string;
   idealProfile: string;
+  validationWarnings?: string[];
 }
 
 export interface ProjectDetail {
@@ -160,4 +161,17 @@ export interface SocialAuditResponse {
   llm_analysis: LLMSocialAnalysis;
   discrepancies: string[];
   justification: string;
+}
+
+export interface MarketAnalysisData {
+  total_scanned: number;
+  avg_yoe: number;
+  stages: {
+    fresher: number;
+    junior: number;
+    senior: number;
+    super_senior: number;
+  };
+  top_locations: { name: string; count: number }[];
+  top_skills: { name: string; count: number }[];
 }

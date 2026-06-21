@@ -203,6 +203,23 @@ export const JobAnalyzer: React.FC<JobAnalyzerProps> = ({
             </div>
           ) : (
             <div className="space-y-5 flex-1">
+              {/* Validation Warnings */}
+              {activeTemplate.jdParsed.validationWarnings && activeTemplate.jdParsed.validationWarnings.length > 0 && (
+                <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl space-y-2 animate-fadeIn">
+                  <div className="flex items-center gap-2 text-rose-400 font-bold text-xs font-mono uppercase tracking-wider">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>Impossible / Contradictory Requirements Detected</span>
+                  </div>
+                  <ul className="space-y-1.5 list-disc pl-4">
+                    {activeTemplate.jdParsed.validationWarnings.map((warning, index) => (
+                      <li key={index} className="text-xs text-rose-300 leading-relaxed font-mono">
+                        {warning}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Header Title */}
               <div className="flex justify-between items-start gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-800/60">
                 <div>
