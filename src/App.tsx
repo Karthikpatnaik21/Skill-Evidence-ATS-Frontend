@@ -42,6 +42,71 @@ function App() {
   // Find the active template
   const activeTemplate = templates.find((t) => t.id === activeTemplateId) || templates[0];
 
+  // Auto-sync ranking with backend whenever candidate details, weights, or signals change
+  useEffect(() => {
+    if (!isBackendConnected || !isGeminiActive) return;
+    if (!activeTemplate || !activeTemplate.resumeParsed) return;
+    // Don't auto-fetch if there is no parsed data yet
+    if (!activeTemplate.resumeParsed.skills || activeTemplate.resumeParsed.skills.length === 0) return;
+
+    const controller = new AbortController();
+
+    const fetchRankUpdate = async () => {
+      try {
+        const response = await fetch('/api/v1/candidate/rank', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            candidate_profile: activeTemplate.resumeParsed,
+            jd_profile: activeTemplate.jdParsed,
+            skill_evidence: activeTemplate.skillEvidence,
+            project_relevance: activeTemplate.projectRelevance,
+            stage_detection: activeTemplate.stageDetection,
+            weights_config: weights,
+            deep_review_signals: activeTemplate.deepReviewSignals ? {
+              ...activeTemplate.deepReviewSignals,
+              githubQualityScore: activeTemplate.socialAuditResult?.llm_analysis?.code_complexity_score,
+              portfolioQualityScore: activeTemplate.socialAuditResult?.llm_analysis?.portfolio_quality_score,
+            } : {
+              githubChecked: false,
+              linkedinChecked: false,
+              portfolioChecked: false,
+              websiteChecked: false,
+            }
+          }),
+          signal: controller.signal
+        });
+        if (response.ok) {
+          const report = await response.json();
+          setBackendReports((prev) => ({
+            ...prev,
+            [activeTemplateId]: report,
+          }));
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to auto-update candidate rank:', err);
+        }
+      }
+    };
+
+    fetchRankUpdate();
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    activeTemplateId,
+    weights,
+    activeTemplate.deepReviewSignals,
+    activeTemplate.resumeParsed,
+    activeTemplate.skillEvidence,
+    activeTemplate.projectRelevance,
+    activeTemplate.stageDetection,
+    isBackendConnected,
+    isGeminiActive
+  ]);
+
   // Dynamically compute the final explainability report
   const reportInfo = calculateFinalScore(activeTemplate, weights);
   
@@ -194,6 +259,13 @@ function App() {
               projectRelevance: updates.projectRelevance,
               stageDetection: updates.stageDetection,
               scores: updates.scores,
+              // Keep deep review signals unchecked by default until audited
+              deepReviewSignals: {
+                githubChecked: false,
+                linkedinChecked: false,
+                portfolioChecked: false,
+                websiteChecked: false,
+              }
             }
           : t
       )

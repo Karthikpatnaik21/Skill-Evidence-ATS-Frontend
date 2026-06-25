@@ -134,6 +134,8 @@ export interface MockTemplate {
     linkedinChecked: boolean;
     portfolioChecked: boolean;
     websiteChecked: boolean;
+    githubQualityScore?: number;
+    portfolioQualityScore?: number;
   };
   socialAuditResult?: SocialAuditResponse;
 }

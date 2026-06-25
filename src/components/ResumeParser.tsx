@@ -585,7 +585,13 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
             skill_evidence: skillEvidence,
             project_relevance: projectRelevance,
             stage_detection: stageDetection,
-            weights_config: weights
+            weights_config: weights,
+            deep_review_signals: {
+              githubChecked: false,
+              linkedinChecked: false,
+              portfolioChecked: false,
+              websiteChecked: false,
+            }
           })
         });
         if (!rankRes.ok) throw new Error('Failed to rank candidate.');
@@ -955,7 +961,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
                     >
                       <Terminal className="h-3.5 w-3.5" />
                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                        GitHub: {activeTemplate.resumeParsed.socialLinks?.github || 'Not found'} (+3)
+                        GitHub: {activeTemplate.resumeParsed.socialLinks?.github || 'Not found'} (+{activeTemplate.deepReviewSignals?.githubChecked ? ((activeTemplate.socialAuditResult?.llm_analysis?.code_complexity_score ?? activeTemplate.deepReviewSignals?.githubQualityScore ?? 0) / 100 * 3).toFixed(1) : '0'})
                       </span>
                     </button>
                     {activeTemplate.resumeParsed.socialLinks?.github && (
@@ -981,7 +987,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
                     >
                       <Link className="h-3.5 w-3.5" />
                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                        LinkedIn: {activeTemplate.resumeParsed.socialLinks?.linkedin || 'Not found'} (+2)
+                        LinkedIn: {activeTemplate.resumeParsed.socialLinks?.linkedin || 'Not found'} (+{activeTemplate.deepReviewSignals?.linkedinChecked ? '2' : '0'})
                       </span>
                     </button>
                     {activeTemplate.resumeParsed.socialLinks?.linkedin && (
@@ -994,7 +1000,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
                       </button>
                     )}
                   </div>
-
+                  
                   {/* Portfolio Toggle */}
                   <div className="relative group/btn">
                     <button
@@ -1007,7 +1013,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
                     >
                       <Briefcase className="h-3.5 w-3.5" />
                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                        Portfolio: {activeTemplate.resumeParsed.socialLinks?.portfolio || 'Not found'} (+3)
+                        Portfolio: {activeTemplate.resumeParsed.socialLinks?.portfolio || 'Not found'} (+{activeTemplate.deepReviewSignals?.portfolioChecked ? ((activeTemplate.socialAuditResult?.llm_analysis?.portfolio_quality_score ?? activeTemplate.deepReviewSignals?.portfolioQualityScore ?? 0) / 100 * 3).toFixed(1) : '0'})
                       </span>
                     </button>
                     {activeTemplate.resumeParsed.socialLinks?.portfolio && (
@@ -1020,7 +1026,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
                       </button>
                     )}
                   </div>
-
+                  
                   {/* Website Toggle */}
                   <div className="relative group/btn">
                     <button
@@ -1033,7 +1039,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
                     >
                       <Globe className="h-3.5 w-3.5" />
                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                        Website: {activeTemplate.resumeParsed.socialLinks?.website || 'Not found'} (+2)
+                        Website: {activeTemplate.resumeParsed.socialLinks?.website || 'Not found'} (+{activeTemplate.deepReviewSignals?.websiteChecked ? '2' : '0'})
                       </span>
                     </button>
                     {activeTemplate.resumeParsed.socialLinks?.website && (

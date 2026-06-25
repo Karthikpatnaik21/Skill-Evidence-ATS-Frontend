@@ -619,10 +619,20 @@ export const calculateFinalScore = (
   // Deep Review Bonus Score
   let bonus = 0;
   if (template.deepReviewSignals) {
-    if (template.deepReviewSignals.githubChecked) bonus += 3;
-    if (template.deepReviewSignals.linkedinChecked) bonus += 2;
-    if (template.deepReviewSignals.portfolioChecked) bonus += 3;
-    if (template.deepReviewSignals.websiteChecked) bonus += 2;
+    if (template.deepReviewSignals.githubChecked) {
+      const q = template.socialAuditResult?.llm_analysis?.code_complexity_score ?? template.deepReviewSignals.githubQualityScore ?? 0;
+      bonus += (q / 100) * 3;
+    }
+    if (template.deepReviewSignals.linkedinChecked) {
+      bonus += 2;
+    }
+    if (template.deepReviewSignals.portfolioChecked) {
+      const q = template.socialAuditResult?.llm_analysis?.portfolio_quality_score ?? template.deepReviewSignals.portfolioQualityScore ?? 0;
+      bonus += (q / 100) * 3;
+    }
+    if (template.deepReviewSignals.websiteChecked) {
+      bonus += 2;
+    }
   }
 
   const finalScoreVal = Math.min(baseScore + bonus, 100);

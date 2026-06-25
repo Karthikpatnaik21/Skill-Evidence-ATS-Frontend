@@ -753,7 +753,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <Terminal className="h-4 w-4" />
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                              GitHub: {candidate.resumeParsed.socialLinks?.github || 'Not found in resume'} (+3)
+                              GitHub: {candidate.resumeParsed.socialLinks?.github || 'Not found in resume'} (+{candidate.deepReviewSignals?.githubChecked ? ((candidate.socialAuditResult?.llm_analysis?.code_complexity_score ?? candidate.deepReviewSignals?.githubQualityScore ?? 0) / 100 * 3).toFixed(1) : '0'})
                             </span>
                           </button>
                           {candidate.resumeParsed.socialLinks?.github && (
@@ -779,7 +779,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <Link className="h-4 w-4" />
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                              LinkedIn: {candidate.resumeParsed.socialLinks?.linkedin || 'Not found in resume'} (+2)
+                              LinkedIn: {candidate.resumeParsed.socialLinks?.linkedin || 'Not found in resume'} (+{candidate.deepReviewSignals?.linkedinChecked ? '2' : '0'})
                             </span>
                           </button>
                           {candidate.resumeParsed.socialLinks?.linkedin && (
@@ -805,7 +805,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <Briefcase className="h-4 w-4" />
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                              Portfolio: {candidate.resumeParsed.socialLinks?.portfolio || 'Not found in resume'} (+3)
+                              Portfolio: {candidate.resumeParsed.socialLinks?.portfolio || 'Not found in resume'} (+{candidate.deepReviewSignals?.portfolioChecked ? ((candidate.socialAuditResult?.llm_analysis?.portfolio_quality_score ?? candidate.deepReviewSignals?.portfolioQualityScore ?? 0) / 100 * 3).toFixed(1) : '0'})
                             </span>
                           </button>
                           {candidate.resumeParsed.socialLinks?.portfolio && (
@@ -831,7 +831,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                           >
                             <Globe className="h-4 w-4" />
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-950 border border-slate-800 text-[9px] text-slate-300 font-mono rounded px-2 py-1 whitespace-nowrap opacity-0 pointer-events-none group-hover/btn:opacity-100 transition-opacity z-10 shadow-lg">
-                              Website: {candidate.resumeParsed.socialLinks?.website || 'Not found in resume'} (+2)
+                              Website: {candidate.resumeParsed.socialLinks?.website || 'Not found in resume'} (+{candidate.deepReviewSignals?.websiteChecked ? '2' : '0'})
                             </span>
                           </button>
                           {candidate.resumeParsed.socialLinks?.website && (
