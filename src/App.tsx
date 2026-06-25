@@ -19,7 +19,8 @@ function App() {
   
   // Connection states
   const [isBackendConnected, setIsBackendConnected] = useState<boolean>(false);
-  const [isGeminiActive, setIsGeminiActive] = useState<boolean>(false);
+  const [isLocalLlmActive, setIsLocalLlmActive] = useState<boolean>(false);
+  const [localLlmModel, setLocalLlmModel] = useState<string>('none');
   const [backendReports, setBackendReports] = useState<Record<string, any>>({});
 
   // Check health of Python backend on mount
@@ -29,13 +30,15 @@ function App() {
       .then((data) => {
         if (data.status === 'ok') {
           setIsBackendConnected(true);
-          setIsGeminiActive(data.gemini_connected);
+          setIsLocalLlmActive(data.llm_active);
+          setLocalLlmModel(data.llm_model);
         }
       })
       .catch(() => {
         console.log('Backend connection failed. Falling back to local offline mock mode.');
         setIsBackendConnected(false);
-        setIsGeminiActive(false);
+        setIsLocalLlmActive(false);
+        setLocalLlmModel('none');
       });
   }, []);
 
@@ -44,7 +47,7 @@ function App() {
 
   // Auto-sync ranking with backend whenever candidate details, weights, or signals change
   useEffect(() => {
-    if (!isBackendConnected || !isGeminiActive) return;
+    if (!isBackendConnected || !isLocalLlmActive) return;
     if (!activeTemplate || !activeTemplate.resumeParsed) return;
     // Don't auto-fetch if there is no parsed data yet
     if (!activeTemplate.resumeParsed.skills || activeTemplate.resumeParsed.skills.length === 0) return;
@@ -104,7 +107,7 @@ function App() {
     activeTemplate.projectRelevance,
     activeTemplate.stageDetection,
     isBackendConnected,
-    isGeminiActive
+    isLocalLlmActive
   ]);
 
   // Dynamically compute the final explainability report
@@ -281,7 +284,7 @@ function App() {
     setActiveTab('parser'); // Directly redirect to parsing analysis
   };
 
-  const isBackendActive = isBackendConnected && isGeminiActive;
+  const isBackendActive = isBackendConnected && isLocalLlmActive;
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
@@ -303,13 +306,13 @@ function App() {
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="text-slate-500">Google Gemini LLM:</span>
-          {isGeminiActive ? (
+          <span className="text-slate-500">Local Offline LLM:</span>
+          {isLocalLlmActive ? (
             <span className="text-indigo-400 flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" /> gemini-1.5-flash Active
+              <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" /> {localLlmModel} Active
             </span>
           ) : (
-            <span className="text-slate-500">Inactive (No API Key)</span>
+            <span className="text-slate-500">Inactive (Fallback to Heuristics)</span>
           )}
         </div>
       </div>

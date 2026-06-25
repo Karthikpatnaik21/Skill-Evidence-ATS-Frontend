@@ -55,7 +55,7 @@ export const SocialAuditModal: React.FC<SocialAuditModalProps> = ({
       { delay: 1200, text: `[1200ms] Connecting to public GitHub API for user profile...` },
       { delay: 1800, text: "[1800ms] Scraping repositories list & active branch languages..." },
       { delay: 2400, text: "[2400ms] Requesting portfolio markup content... stripping tags..." },
-      { delay: 3000, text: "[3000ms] Invoking Gemini 1.5 Flash engine for project alignment audit..." },
+      { delay: 3000, text: "[3000ms] Invoking Local LLM engine for project alignment audit..." },
       { delay: 3500, text: "[3500ms] Synthesizing code complexity & cross-checking resume discrepancies..." }
     ];
 

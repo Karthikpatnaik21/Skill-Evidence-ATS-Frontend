@@ -393,16 +393,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       const tempId = `candidate-${Date.now()}`;
       
       if (isBackendActive) {
-        setProcessingStatus('Connecting to Gemini Pipeline Stage 2 (Parsing)...');
+        setProcessingStatus('Connecting to Local LLM Pipeline Stage 2 (Parsing)...');
         const parseRes = await fetch('/api/v1/resume/parse', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ resume_text: text })
         });
-        if (!parseRes.ok) throw new Error('Gemini Parsing step failed.');
+        if (!parseRes.ok) throw new Error('Local LLM Parsing step failed.');
         const resumeParsed = await parseRes.json();
 
-        setProcessingStatus('Running Gemini Stage 3 (Evidence Scoring)...');
+        setProcessingStatus('Running Local LLM Stage 3 (Evidence Scoring)...');
         const evidenceRes = await fetch('/api/v1/evidence/score', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -414,7 +414,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         if (!evidenceRes.ok) throw new Error('Evidence extraction failed.');
         const skillEvidence = await evidenceRes.json();
 
-        setProcessingStatus('Running Gemini Stage 4 (Project Matching)...');
+        setProcessingStatus('Running Local LLM Stage 4 (Project Matching)...');
         const relevanceRes = await fetch('/api/v1/project/relevance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -426,7 +426,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         if (!relevanceRes.ok) throw new Error('Project matching failed.');
         const projectRelevance = await relevanceRes.json();
 
-        setProcessingStatus('Running Gemini Stage 5 (Career Stage Detection)...');
+        setProcessingStatus('Running Local LLM Stage 5 (Career Stage Detection)...');
         const stageRes = await fetch('/api/v1/stage/detect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
