@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { SocialLinks, SocialAuditResponse } from '../types';
 import { 
   Loader2, X, Terminal, Briefcase, Link as LinkIcon, Globe, 
@@ -112,7 +113,7 @@ export const SocialAuditModal: React.FC<SocialAuditModalProps> = ({
     return 'text-rose-400 bg-rose-500/10 border-rose-500/20';
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="glass-card max-w-3xl w-full rounded-2xl border border-slate-800/80 bg-slate-900/95 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
@@ -252,8 +253,8 @@ export const SocialAuditModal: React.FC<SocialAuditModalProps> = ({
                   </div>
                   <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                     auditResult.github_verified 
-                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25' 
-                      : 'text-slate-500 bg-slate-950 border-slate-800'
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25' 
+                    : 'text-slate-500 bg-slate-950 border-slate-800'
                   }`}>
                     {auditResult.github_verified ? 'Verified ✓' : 'No Repos'}
                   </span>
@@ -266,8 +267,8 @@ export const SocialAuditModal: React.FC<SocialAuditModalProps> = ({
                   </div>
                   <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
                     auditResult.portfolio_verified 
-                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25' 
-                      : 'text-slate-500 bg-slate-950 border-slate-800'
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25' 
+                    : 'text-slate-500 bg-slate-950 border-slate-800'
                   }`}>
                     {auditResult.portfolio_verified ? 'Verified ✓' : 'No Site'}
                   </span>
@@ -433,7 +434,7 @@ export const SocialAuditModal: React.FC<SocialAuditModalProps> = ({
             {!auditResult && !isAuditing && hasLinks && (
               <button 
                 onClick={startAudit}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-xl cursor-pointer"
+                className="bg-indigo-650 hover:bg-indigo-550 text-white font-semibold text-xs px-4 py-2 rounded-xl cursor-pointer"
               >
                 Run Audit
               </button>
@@ -441,6 +442,7 @@ export const SocialAuditModal: React.FC<SocialAuditModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

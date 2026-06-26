@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Upload, FileSpreadsheet, Play, AlertTriangle,
   Settings, Clock, Zap, Search, Eye, Ban, ArrowDownToLine, Layers, Loader2, Sparkles
@@ -10,6 +11,8 @@ interface DisqualifiedLog {
   score: number;
   stage: string;
   reason: string;
+  potential: number;
+  details: any;
 }
 
 interface RankedCandidate {
@@ -53,6 +56,9 @@ export const BatchSandbox: React.FC = () => {
   const [marketLimit, setMarketLimit] = useState<number>(20000);
   const [locationFilteringActive, setLocationFilteringActive] = useState<boolean>(false);
   const [marketAnalysisActive, setMarketAnalysisActive] = useState<boolean>(false);
+  const [selectedStages, setSelectedStages] = useState<string[]>([]);
+  const [minPotential, setMinPotential] = useState<number>(0);
+  const [loadDisqualifiedDetails, setLoadDisqualifiedDetails] = useState<boolean>(false);
   const PAGE_SIZE = 50;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -246,7 +252,8 @@ export const BatchSandbox: React.FC = () => {
                 candidates,
                 deep_search: deepSearch,
                 jd_profile: activeJdProfile,
-                location_priority: activeLocationPriority
+                location_priority: activeLocationPriority,
+                include_disqualified_details: loadDisqualifiedDetails
               })
             });
 
@@ -276,7 +283,8 @@ export const BatchSandbox: React.FC = () => {
             file_path: serverFilePath,
             deep_search: deepSearch,
             jd_profile: activeJdProfile,
-            location_priority: activeLocationPriority
+            location_priority: activeLocationPriority,
+            include_disqualified_details: loadDisqualifiedDetails
           })
         });
 
@@ -324,18 +332,23 @@ export const BatchSandbox: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const filteredRanked = results?.ranked_candidates.filter((c: RankedCandidate) =>
-    c.candidate_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.stage.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.reasoning.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredRanked = results?.ranked_candidates.filter((c: RankedCandidate) => {
+    const matchesSearch = c.candidate_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.stage.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.reasoning.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStage = selectedStages.length === 0 || selectedStages.includes(c.stage.toLowerCase());
+    const matchesPotential = c.potential >= minPotential;
+    return matchesSearch && matchesStage && matchesPotential;
+  }) || [];
 
-  const filteredDisqualified = results?.disqualified_candidates.filter((c: DisqualifiedLog) =>
-    c.candidate_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.reason.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  const filteredDisqualified = results?.disqualified_candidates.filter((c: DisqualifiedLog) => {
+    const matchesSearch = c.candidate_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.reason.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStage = selectedStages.length === 0 || selectedStages.includes(c.stage.toLowerCase());
+    return matchesSearch && matchesStage;
+  }) || [];
 
   const honeypotsCount = results?.disqualified_candidates.filter((c: DisqualifiedLog) =>
     c.reason.toLowerCase().includes('honeypot')
@@ -353,6 +366,32 @@ export const BatchSandbox: React.FC = () => {
 
   const handleSearch = (q: string) => { setSearchQuery(q); setCurrentPage(1); };
   const handleTabChange = (tab: 'ranked' | 'disqualified' | 'market') => { setActiveSubTab(tab); setCurrentPage(1); };
+
+  const getDisqualifiedReason = (selectedCandidate: any) => {
+    const baseReason = selectedCandidate.reasoning || selectedCandidate.reason || '';
+    if (baseReason.includes("prior to its founding date") && selectedCandidate.details?.career_history) {
+      const COMPANY_FOUNDING: Record<string, number> = {
+        'sarvam': 2023,
+        'krutrim': 2023
+      };
+      for (const job of selectedCandidate.details.career_history) {
+        const comp = (job.company || '').toLowerCase();
+        for (const [name_key, founding_year] of Object.entries(COMPANY_FOUNDING)) {
+          if (comp.includes(name_key)) {
+            const startStr = job.start_date || '';
+            const match = startStr.match(/^(\d{4})/);
+            if (match) {
+              const startYear = parseInt(match[1]);
+              if (startYear < founding_year) {
+                return `Honeypot: experience at '${job.company}' prior to its founding date (${founding_year}, but candidate claimed experience starting in ${startYear})`;
+              }
+            }
+          }
+        }
+      }
+    }
+    return baseReason;
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -689,6 +728,23 @@ export const BatchSandbox: React.FC = () => {
                     <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white"></div>
                   </label>
                 </div>
+
+                {/* Include Disqualified Details Toggle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-300 block">Disqualified Profiles</span>
+                    <span className="text-[9px] text-slate-500 block mt-0.5">Load profiles for disqualified</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={loadDisqualifiedDetails}
+                      onChange={(e) => setLoadDisqualifiedDetails(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white"></div>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -973,6 +1029,69 @@ export const BatchSandbox: React.FC = () => {
               </div>
             </div>
 
+            {/* Filter Bar */}
+            {results && activeSubTab !== 'market' && (
+              <div className="bg-slate-900/20 border-b border-slate-800/80 px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs animate-fadeIn">
+                {/* Stage Filters */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-slate-500 font-mono uppercase tracking-wider text-[10px]">Filter Stage:</span>
+                  {(['fresher', 'junior', 'senior', 'super_senior'] as const).map(st => {
+                    const isSelected = selectedStages.includes(st);
+                    return (
+                      <button
+                        key={st}
+                        onClick={() => {
+                          setSelectedStages(prev =>
+                            isSelected ? prev.filter(s => s !== st) : [...prev, st]
+                          );
+                          setCurrentPage(1);
+                        }}
+                        className={`px-3 py-1 rounded-full border text-[10px] font-mono capitalize transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 font-bold'
+                            : 'bg-slate-950/40 text-slate-400 border-slate-850 hover:bg-slate-900/65'
+                        }`}
+                      >
+                        {st.replace('_', ' ')}
+                      </button>
+                    );
+                  })}
+                  {selectedStages.length > 0 && (
+                    <button
+                      onClick={() => { setSelectedStages([]); setCurrentPage(1); }}
+                      className="text-[10px] font-mono text-indigo-400 hover:text-indigo-350 ml-1 underline cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Potential Filter */}
+                {activeSubTab === 'ranked' && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-500 font-mono uppercase tracking-wider text-[10px] shrink-0">Min Potential:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={minPotential}
+                      onChange={(e) => { setMinPotential(Number(e.target.value)); setCurrentPage(1); }}
+                      className="w-32 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
+                    />
+                    <span className="font-mono text-indigo-300 font-bold text-[11px] w-8 text-right">{minPotential}</span>
+                    {minPotential > 0 && (
+                      <button
+                        onClick={() => { setMinPotential(0); setCurrentPage(1); }}
+                        className="text-[10px] font-mono text-indigo-400 hover:text-indigo-350 underline cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Results views */}
             {loading ? (
               // ── Skeleton Loader ──
@@ -1122,6 +1241,7 @@ export const BatchSandbox: React.FC = () => {
                         <th className="px-6 py-3 font-semibold">Name</th>
                         <th className="px-6 py-3 font-semibold">Stage</th>
                         <th className="px-6 py-3 font-semibold">Disqualification Reason</th>
+                        <th className="px-6 py-3 font-semibold text-right">Profile</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-900 text-xs">
@@ -1135,7 +1255,7 @@ export const BatchSandbox: React.FC = () => {
                               <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${c.stage === 'fresher'
                                 ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
                                 : c.stage === 'junior'
-                                  ? 'bg-teal-500/10 text-teal-300 border border-teal-500/20'
+                                  ? 'bg-teal-500/10 text-teal-350 border border-teal-500/20'
                                   : c.stage === 'senior'
                                     ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
                                     : 'bg-fuchsia-500/10 text-fuchsia-300 border border-fuchsia-500/20'
@@ -1152,12 +1272,41 @@ export const BatchSandbox: React.FC = () => {
                                 {c.reason}
                               </span>
                             </td>
+                            <td className="px-6 py-3.5 text-right">
+                              {loadDisqualifiedDetails ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedCandidate({
+                                    candidate_id: c.candidate_id,
+                                    rank: -1,
+                                    score: c.score,
+                                    potential: c.potential || 0.0,
+                                    reasoning: c.reason,
+                                    name: c.name,
+                                    stage: c.stage,
+                                    details: c.details
+                                  })}
+                                  className="text-slate-400 hover:text-white p-1.5 hover:bg-slate-800/80 rounded-lg transition-all cursor-pointer"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  title="Enable 'Disqualified Profiles' in Configuration sidebar to view detailed profile details"
+                                  onClick={() => alert("Please enable the 'Disqualified Profiles' switch in the Configuration sidebar settings to load and view full profile details for disqualified candidates.")}
+                                  className="text-slate-650 hover:text-indigo-400 p-1.5 hover:bg-slate-800/40 rounded-lg transition-all opacity-40 hover:opacity-100 cursor-pointer"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         );
                       })}
                       {filteredDisqualified.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-12 text-center text-slate-500 font-mono">
+                          <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
                             No disqualified candidates to display.
                           </td>
                         </tr>
@@ -1339,7 +1488,7 @@ export const BatchSandbox: React.FC = () => {
         </div>
 
         {/* Candidate Profile Details Modal */}
-        {selectedCandidate && (
+        {selectedCandidate && createPortal(
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="glass max-w-2xl w-full max-h-[85vh] overflow-y-auto rounded-2xl border border-slate-800 p-6 space-y-6 text-slate-300 relative shadow-2xl animate-scaleIn">
               {/* Close button */}
@@ -1363,9 +1512,15 @@ export const BatchSandbox: React.FC = () => {
                   <span className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded">
                     Experience: {selectedCandidate.details.profile.years_of_experience} yrs
                   </span>
-                  <span className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded">
-                    Score: {selectedCandidate.score}
-                  </span>
+                  {selectedCandidate.rank !== -1 ? (
+                    <span className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 px-2 py-0.5 rounded">
+                      Score: {selectedCandidate.score}
+                    </span>
+                  ) : (
+                    <span className="bg-red-500/10 text-red-300 border border-red-500/20 px-2 py-0.5 rounded">
+                      Disqualified (Score: {selectedCandidate.score})
+                    </span>
+                  )}
                   <span className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded">
                     Potential: {selectedCandidate.potential}
                   </span>
@@ -1417,13 +1572,24 @@ export const BatchSandbox: React.FC = () => {
                 </div>
               </div>
 
-              {/* Candidate Explanation Reasoning details */}
-              <div className="bg-indigo-500/5 border border-indigo-500/10 p-4 rounded-xl space-y-1">
-                <h4 className="text-[10px] font-mono text-indigo-400 uppercase tracking-wider">Explainability Reasoning</h4>
-                <p className="text-xs font-sans text-slate-300 italic">"{selectedCandidate.reasoning}"</p>
+              {/* Candidate Explanation/Disqualification details */}
+              <div className={`p-4 rounded-xl space-y-1 ${selectedCandidate.rank !== -1
+                ? 'bg-indigo-500/5 border border-indigo-500/10'
+                : 'bg-red-500/5 border border-red-500/10'
+                }`}>
+                <h4 className={`text-[10px] font-mono uppercase tracking-wider ${selectedCandidate.rank !== -1
+                  ? 'text-indigo-400'
+                  : 'text-red-400'
+                  }`}>
+                  {selectedCandidate.rank !== -1 ? 'Explainability Reasoning' : 'Disqualification Reason'}
+                </h4>
+                <p className="text-xs font-sans text-slate-300 italic">
+                  "{selectedCandidate.rank !== -1 ? selectedCandidate.reasoning : getDisqualifiedReason(selectedCandidate)}"
+                </p>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     </div>

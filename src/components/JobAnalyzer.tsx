@@ -99,8 +99,11 @@ export const JobAnalyzer: React.FC<JobAnalyzerProps> = ({
 
         // Attempt to guess seniority
         let seniority = 'Mid-level (2-5 years)';
-        if (lowerText.includes('senior') || lowerText.includes('principal')) seniority = 'Senior / Lead (5+ years)';
-        else if (lowerText.includes('junior') || lowerText.includes('intern') || lowerText.includes('fresher')) seniority = 'Fresher / Entry-level (0-2 years)';
+        if (/\b(senior|lead|principal|staff|5\+?\s*years|7\+?\s*years|8\+?\s*years|9\+?\s*years)\b/.test(lowerText)) {
+          seniority = 'Senior / Lead (5+ years)';
+        } else if (/\b(fresher|entry[- ]level|0[- ]2\s*years|0\s+to\s+2\s*years|intern(ship)?s?)\b/.test(lowerText)) {
+          seniority = 'Fresher / Entry-level (0-2 years)';
+        }
 
         const parsed: JobDescriptionProfile = {
           title,
