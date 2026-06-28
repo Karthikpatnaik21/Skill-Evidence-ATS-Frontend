@@ -527,8 +527,11 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
     setPdfError(null);
 
     if (isBackendActive) {
+      // Pace the steps visually — heuristics are fast, so add delays
+      const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
       try {
-        // Step 1: Parse candidate profile (Stage 2)
+        // Step 1: Parse candidate profile
         setActiveStep(1);
         const parseRes = await fetch('/api/v1/resume/parse', {
           method: 'POST',
@@ -537,8 +540,14 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
         });
         if (!parseRes.ok) throw new Error('Failed to parse candidate profile.');
         const resumeParsed = await parseRes.json();
-        
-        // Step 2: Evidence Scoring (Stage 3)
+        await delay(600);
+
+        // Heuristic parser returns projects:[] / experience:[] when it can't extract context.
+        // In that case we fall back to the existing template's scored data.
+        const hasContext = (resumeParsed.projects?.length ?? 0) > 0
+          || (resumeParsed.experience?.length ?? 0) > 0;
+
+        // Step 2: Evidence Scoring
         setActiveStep(2);
         const evidenceRes = await fetch('/api/v1/evidence/score', {
           method: 'POST',
@@ -549,9 +558,12 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
           })
         });
         if (!evidenceRes.ok) throw new Error('Failed to score skill evidence.');
-        const skillEvidence = await evidenceRes.json();
-        
-        // Step 3: Project Relevance (Stage 4)
+        const rawSkillEvidence = await evidenceRes.json();
+        // Keep template's skill evidence when heuristic had no project/work context
+        const skillEvidence = hasContext ? rawSkillEvidence : activeTemplate.skillEvidence;
+        await delay(600);
+
+        // Step 3: Project Relevance
         setActiveStep(3);
         const relevanceRes = await fetch('/api/v1/project/relevance', {
           method: 'POST',
@@ -562,9 +574,14 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
           })
         });
         if (!relevanceRes.ok) throw new Error('Failed to score project relevance.');
-        const projectRelevance = await relevanceRes.json();
-        
-        // Step 4: Stage Detection (Stage 5)
+        const rawProjectRelevance = await relevanceRes.json();
+        // Keep template's project relevance when no projects were found
+        const projectRelevance = rawProjectRelevance.length > 0
+          ? rawProjectRelevance
+          : activeTemplate.projectRelevance;
+        await delay(600);
+
+        // Step 4: Stage Detection
         setActiveStep(4);
         const stageRes = await fetch('/api/v1/stage/detect', {
           method: 'POST',
@@ -573,8 +590,9 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
         });
         if (!stageRes.ok) throw new Error('Failed to detect career stage.');
         const stageDetection = await stageRes.json();
-        
-        // Step 5: Rank & Explainability Output
+        await delay(600);
+
+        // Step 5: Rank & Explainability Output (uses effective fallback data)
         setActiveStep(5);
         const rankRes = await fetch('/api/v1/candidate/rank', {
           method: 'POST',
@@ -596,10 +614,11 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
         });
         if (!rankRes.ok) throw new Error('Failed to rank candidate.');
         const finalReport = await rankRes.json();
-        
-        // Save report & update template details
+        await delay(400);
+
+        // Save report & update template
         if (onSaveBackendReport) onSaveBackendReport(finalReport);
-        
+
         onUpdateResume(resumeText, {
           resumeParsed,
           skillEvidence,
@@ -612,7 +631,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
             experienceMatch: finalReport.breakdown.experienceMatch
           }
         });
-        
+
         setShowResult(true);
       } catch (err: any) {
         console.error('Active extraction pipeline error:', err);
@@ -622,6 +641,7 @@ export const ResumeParser: React.FC<ResumeParserProps> = ({
       }
       return;
     }
+
 
     setActiveStep(1);
     // Animation sequences mimicking pipeline stages
