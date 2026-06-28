@@ -34,10 +34,40 @@ interface BatchRankResponse {
   candidates_per_sec: number;
 }
 
+const HARDCODED_JD = {
+  title: "Senior AI Engineer",
+  seniority: "Senior",
+  idealProfile: "Someone comfortable with both deep technical depth in modern ML systems and a scrappy product-engineering attitude, capable of shipping working solutions quickly while learning from real users.",
+  requiredSkills: [
+    "embeddings",
+    "BM25",
+    "LLMs",
+    "fine-tuning"
+  ],
+  preferredSkills: [
+    "Milvus",
+    "NDCG",
+    "MRR",
+    "BM25",
+    "vector database",
+    "sentence-transformers",
+    "Git",
+    "REST"
+  ],
+  responsibilities: [
+    "Own the intelligence layer of Redrob's product, including ranking, retrieval, and matching systems.",
+    "Audit current systems (e.g., BM25 + rule-based scoring) to identify high-leverage improvements.",
+    "Ship a v2 ranking system that improves recruiter-engagement metrics using embeddings, hybrid retrieval, and LLMs.",
+    "Set up evaluation infrastructure for continuous improvement.",
+    "Drive the long-term architecture of candidate-JD matching at scale."
+  ],
+  validationWarnings: []
+};
+
 export const BatchSandbox: React.FC = () => {
   const [runMode, setRunMode] = useState<'upload' | 'server'>('server');
   const [serverFilePath, setServerFilePath] = useState<string>('[PUB] India_runs_data_and_ai_challenge/[PUB] India_runs_data_and_ai_challenge/India_runs_data_and_ai_challenge/candidates.jsonl');
-  const [challengeJD, setChallengeJD] = useState<any | null>(null);
+  const [challengeJD, setChallengeJD] = useState<any | null>(HARDCODED_JD);
   const [isJdCollapsed, setIsJdCollapsed] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const [deepSearch, setDeepSearch] = useState<boolean>(false);
@@ -91,16 +121,6 @@ export const BatchSandbox: React.FC = () => {
     }
   };
 
-  // Fetch challenge job description on mount
-  useEffect(() => {
-    fetch('/api/v1/sandbox/job-description')
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error('Failed to load challenge Job Description.');
-      })
-      .then(data => setChallengeJD(data))
-      .catch(err => console.error(err));
-  }, []);
 
   // Fetch market trends when active
   useEffect(() => {
